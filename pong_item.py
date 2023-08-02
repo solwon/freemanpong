@@ -185,7 +185,7 @@ class Item:
                     self.x = random.randint(150, 330)
                     self.y = random.randint(50, 310)
                     # 아이템 종류 랜덤 선택
-                    self.type = random.randint(3, 3)
+                    self.type = random.randint(1, 3)
                     if self.type == 1:
                         self.color = 8
                     elif self.type == 2:
@@ -227,11 +227,11 @@ class Item:
                 self.active = False
             else:
                 self.use_count += 1
-                for i in range(0, 9):
+                for i in range(0, 40):
                     new_ball = Ball(self.game)
-                    if i >= 5:
+                    if i >= 20:
                         new_ball.player = 'enemy'
-                    new_ball.initialize(ball.x, ball.y, 5, 10, 10)
+                    new_ball.initialize(ball.x, ball.y, 5, 10, random.randint(5, 15))
                     new_ball.item = True
                     new_ball.fake = True
                     self.game.balls.append(new_ball)
