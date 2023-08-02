@@ -158,9 +158,15 @@ class enemy_bar(Bar):
 
     def move(self):
         if self.y > self.game.balls[0].y:
-            self.y -= self.speed
+            if self.speed > self.y - self.game.balls[0].y:
+                self.y = self.game.balls[0].y
+            else:
+                self.y -= self.speed
         else:
-            self.y += self.speed
+            if self.speed > self.game.balls[0].y - self.y:
+                self.y = self.game.balls[0].y
+            else:
+                self.y += self.speed
 
 
 class Item:
