@@ -42,47 +42,49 @@ class Ball:
     def move(self):
         if self.can_move:
             if self.game.started:
-                # 공이 상하 벽에 충돌할 경우
-                if self.y - self.r < 0:
-                    self.dy = abs(self.dy)
-                if self.y + self.r > 360:
-                    self.dy = -abs(self.dy)
-                # 공이 왼쪽/오른쪽 경계에 충돌할 경우 포인트 획득, 공 중앙 이동&각도 초기화
-                if self.x + self.r > 480 or self.x - self.r < 0:
-                    self.get_point()
-                    if not self.item:
-                        self.ori_location()
-                        self.time = pyxel.frame_count
-                # 공이 플레이어 바에 충돌할 경우
-                if 45 < self.x + self.r < 65:
-                    if self.game.bar.y - self.game.bar.height - self.r < self.y < self.game.bar.y \
-                            + self.game.bar.height + self.r:
-                        # 공이 닿은 패드의 위치에 따라 튕기는 각도가 변함
-                        ratio = (self.y - (self.game.bar.y - self.game.bar.height)) / (2 * self.game.bar.height)
-                        angle = int(300 + 120 * ratio)
-                        self.dx = math.cos(math.radians(angle))
-                        self.dy = math.sin(math.radians(angle))
-                        self.dx = abs(self.dx)
-                        # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
+                if self.time == 0:
+                    # 공이 상하 벽에 충돌할 경우
+                    if self.y - self.r < 0:
+                        self.dy = abs(self.dy)
+                    if self.y + self.r > 360:
+                        self.dy = -abs(self.dy)
+                    # 공이 왼쪽/오른쪽 경계에 충돌할 경우 포인트 획득, 공 중앙 이동&각도 초기화
+                    if self.x + self.r > 480 or self.x - self.r < 0:
+                        self.get_point()
                         if not self.item:
-                            self.game.item.create_item()
-                            self.change_player('player')
-                        else:
-                            self.game.balls.remove(self)
-                # 공이 적 바에 충돌할 경우
-                if 440 > self.x + self.r > 420:
-                    if self.game.enemy_bar.y - self.game.enemy_bar.height - self.r < self.y < self.game.enemy_bar.y \
-                            + self.game.enemy_bar.height + self.r:
-                        self.dx = -abs(self.dx)
-                        # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
-                        if not self.item:
-                            self.game.item.create_item()
-                            self.change_player('enemy')
-                        else:
-                            self.game.balls.remove(self)
-                # 공 이동
-                self.x += self.dx * self.speed
-                self.y += self.dy * self.speed
+                            self.ori_location()
+                    # 공이 플레이어 바에 충돌할 경우
+                    if 45 < self.x + self.r < 65:
+                        if self.game.bar.y - self.game.bar.height - self.r < self.y < self.game.bar.y \
+                                + self.game.bar.height + self.r:
+                            # 공이 닿은 패드의 위치에 따라 튕기는 각도가 변함
+                            ratio = (self.y - (self.game.bar.y - self.game.bar.height)) / (2 * self.game.bar.height)
+                            angle = int(300 + 120 * ratio)
+                            self.dx = math.cos(math.radians(angle))
+                            self.dy = math.sin(math.radians(angle))
+                            self.dx = abs(self.dx)
+                            # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
+                            if not self.item:
+                                self.game.item.create_item()
+                                self.change_player('player')
+                            else:
+                                self.game.balls.remove(self)
+                    # 공이 적 바에 충돌할 경우
+                    if 440 > self.x + self.r > 420:
+                        if self.game.enemy_bar.y - self.game.enemy_bar.height - self.r < self.y < self.game.enemy_bar.y \
+                                + self.game.enemy_bar.height + self.r:
+                            self.dx = -abs(self.dx)
+                            # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
+                            if not self.item:
+                                self.game.item.create_item()
+                                self.change_player('enemy')
+                            else:
+                                self.game.balls.remove(self)
+                    # 공 이동
+                    self.x += self.dx * self.speed
+                    self.y += self.dy * self.speed
+                else:
+                    self.time -= 1
             else:
                 self.x = self.game.bar.x + self.game.bar.width + self.r + 5
                 self.y = self.game.bar.y
@@ -101,6 +103,7 @@ class Ball:
     def ori_location(self):
         self.x = 240
         self.y = 180
+        self.time = 30
         angle = 0
 
         if self.player == 'player':
