@@ -17,6 +17,7 @@ class Ball:
         self.max_speed = 15  # 공 최고속도
         self.color = 7
         self.time = 0
+        self.item = False
         self.fake = False
         self.can_move = False  # 공의 움직임 여부
         self.player = 'player'  # 공을 친 사람을 구분하는 변수(아이템 사용자)
@@ -49,7 +50,7 @@ class Ball:
                 # 공이 왼쪽/오른쪽 경계에 충돌할 경우 포인트 획득, 공 중앙 이동&각도 초기화
                 if self.x + self.r > 480 or self.x - self.r < 0:
                     self.get_point()
-                    if not self.fake:
+                    if not self.item:
                         self.ori_location()
                         self.time = pyxel.frame_count
                 # 공이 플레이어 바에 충돌할 경우
@@ -63,7 +64,7 @@ class Ball:
                         self.dy = math.sin(math.radians(angle))
                         self.dx = abs(self.dx)
                         # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
-                        if not self.fake:
+                        if not self.item:
                             self.game.item.create_item()
                             self.change_player('player')
                         else:
@@ -74,7 +75,7 @@ class Ball:
                             + self.game.enemy_bar.height + self.r:
                         self.dx = -abs(self.dx)
                         # 플레이어 변경, 아이템 생성 시도, 아이템 공 제거
-                        if not self.fake:
+                        if not self.item:
                             self.game.item.create_item()
                             self.change_player('enemy')
                         else:
@@ -88,12 +89,13 @@ class Ball:
 
     #  누군가 득점을 했을 때 실행
     def get_point(self):
-        if self.player == 'player':
-            self.game.player.score += 1
-        elif self.player == 'enemy':
-            self.game.enemy.score += 1
+        if not self.fake:
+            if self.player == 'player':
+                self.game.player.score += 1
+            elif self.player == 'enemy':
+                self.game.enemy.score += 1
 
-        if self.fake:
+        if self.item:
             self.game.balls.remove(self)
 
     def ori_location(self):
@@ -169,7 +171,7 @@ class Item:
         self.color = 0
         self.use_count = 0
         self.time = 0
-        self.player = 'player' # 아이템 획득한 사람을 구별
+        self.player = 'player'  # 아이템 획득한 사람을 구별
         self.existence = False
         self.active = False
 
@@ -183,16 +185,18 @@ class Item:
                     self.x = random.randint(150, 330)
                     self.y = random.randint(50, 310)
                     # 아이템 종류 랜덤 선택
-                    self.type = random.randint(1, 2)
+                    self.type = random.randint(3, 3)
                     if self.type == 1:
                         self.color = 8
                     elif self.type == 2:
                         self.color = 9
+                    elif self.type == 3:
+                        self.color = 10
 
     def detect_collision(self, ball: Ball):
         if self.game.started:
             if self.existence:
-                if not ball.fake:
+                if not ball.item:
                     if (self.x - self.r - ball.r < ball.x < self.x + self.r + ball.r) and \
                             (self.y - self.r - ball.r < ball.y < self.y + self.r + ball.r):
                         self.active = True
@@ -216,8 +220,21 @@ class Item:
                 else:
                     ball.speed = 15
 
-    def fake_ball(self):
-        pass
+    def fake_ball(self, ball: Ball):
+        if (pyxel.frame_count - self.time) % 60 == 0:
+            if self.use_count == 3:
+                self.use_count = 0
+                self.active = False
+            else:
+                self.use_count += 1
+                for i in range(0, 9):
+                    new_ball = Ball(self.game)
+                    if i >= 5:
+                        new_ball.player = 'enemy'
+                    new_ball.initialize(ball.x, ball.y, 5, 10, 10)
+                    new_ball.item = True
+                    new_ball.fake = True
+                    self.game.balls.append(new_ball)
 
     def triple_ball(self, ball: Ball):
         ball.can_move = False
@@ -233,7 +250,7 @@ class Item:
                 if ball.player == 'enemy':
                     new_ball.player = 'enemy'
                 new_ball.initialize(ball.x, ball.y, 5, 8, 10)
-                new_ball.fake = True
+                new_ball.item = True
                 self.game.balls.append(new_ball)
 
     def yunepyoi(self):
@@ -294,11 +311,13 @@ class Game:
             ball.move()
             self.item.detect_collision(ball)
             if self.item.active:
-                if not ball.fake:
+                if not ball.item:
                     if self.item.type == 1:
                         self.item.triple_ball(ball)
                     elif self.item.type == 2:
                         self.item.speed_ball(ball)
+                    elif self.item.type == 3:
+                        self.item.fake_ball(ball)
 
     def draw(self):
         pyxel.cls(0)
@@ -325,6 +344,8 @@ class Game:
                 pyxel.text(240, 75, f'{90 - (pyxel.frame_count - self.item.time)}', 7)
             elif self.item.type == 2:
                 pyxel.text(240, 75, f'{300 - (pyxel.frame_count - self.item.time)}', 7)
+            elif self.item.type == 3:
+                pyxel.text(240, 75, f'{180 - (pyxel.frame_count - self.item.time)}', 7)
 
         if not self.started:
             pyxel.text(85, 215, 'Press SPACE to Start', 7)
