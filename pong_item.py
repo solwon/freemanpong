@@ -14,11 +14,11 @@ class Ball:
         self.dx = 0
         self.dy = 0
         self.speed = 0
-        self.max_speed = 7  # 공 최고속도
+        self.max_speed = 15  # 공 최고속도
         self.color = 7
+        self.time = 0
         self.fake = False
         self.can_move = False  # 공의 움직임 여부
-        self.get_item = False  # 공이 아이템에 닿았을 때 여부
         self.player = 'player'  # 공을 친 사람을 구분하는 변수(아이템 사용자)
 
     def initialize(self, x, y, r=5, color=7, speed=10, angle=-1):
@@ -46,20 +46,14 @@ class Ball:
                     self.dy = abs(self.dy)
                 if self.y + self.r > 360:
                     self.dy = -abs(self.dy)
-                """ # 공이 오른쪽 경계에 충돌할 경우
-                if self.x + self.r > 480:
-                    self.dx = -abs(self.dx)
-                # 공이 왼쪽 경계에 충돌할 경우
-                if self.x - self.r < 0:
-                    self.dx = abs(self.dx) """
-                # 공이 왼쪽/오른쪽 경계에 충돌할 경우 포인트 획득
+                # 공이 왼쪽/오른쪽 경계에 충돌할 경우 포인트 획득, 공 중앙 이동&각도 초기화
                 if self.x + self.r > 480 or self.x - self.r < 0:
                     self.get_point()
                     if not self.fake:
                         self.ori_location()
-                        self.game.time.count = pyxel.frame_count
+                        self.time = pyxel.frame_count
                 # 공이 플레이어 바에 충돌할 경우
-                if 45 < self.x + self.r < 60:
+                if 45 < self.x + self.r < 65:
                     if self.game.bar.y - self.game.bar.height - self.r < self.y < self.game.bar.y \
                             + self.game.bar.height + self.r:
                         # 공이 닿은 패드의 위치에 따라 튕기는 각도가 변함
@@ -75,7 +69,7 @@ class Ball:
                         else:
                             self.game.balls.remove(self)
                 # 공이 적 바에 충돌할 경우
-                if 435 > self.x + self.r > 420:
+                if 440 > self.x + self.r > 420:
                     if self.game.enemy_bar.y - self.game.enemy_bar.height - self.r < self.y < self.game.enemy_bar.y \
                             + self.game.enemy_bar.height + self.r:
                         self.dx = -abs(self.dx)
@@ -174,21 +168,26 @@ class Item:
         self.type = 0
         self.color = 0
         self.use_count = 0
+        self.time = 0
+        self.player = 'player' # 아이템 획득한 사람을 구별
         self.existence = False
         self.active = False
 
     def create_item(self):
         if not self.existence:
-            # 아이템 등장 확률 설정
-            if random.randint(1, 1) == 1:
-                self.existence = True
-                # 아이템 좌표 랜덤 선택
-                self.x = random.randint(150, 330)
-                self.y = random.randint(50, 310)
-                # 아이템 종류 랜덤 선택
-                self.type = random.randint(1, 1)
-                if self.type == 1:
-                    self.color = 8
+            if not self.active:
+                # 아이템 등장 확률 설정
+                if random.randint(1, 1) == 1:
+                    self.existence = True
+                    # 아이템 좌표 랜덤 선택
+                    self.x = random.randint(150, 330)
+                    self.y = random.randint(50, 310)
+                    # 아이템 종류 랜덤 선택
+                    self.type = random.randint(1, 2)
+                    if self.type == 1:
+                        self.color = 8
+                    elif self.type == 2:
+                        self.color = 9
 
     def detect_collision(self, ball: Ball):
         if self.game.started:
@@ -198,17 +197,31 @@ class Item:
                             (self.y - self.r - ball.r < ball.y < self.y + self.r + ball.r):
                         self.active = True
                         self.existence = False
-                        self.game.time.count = pyxel.frame_count
+                        self.player = ball.player
+                        self.time = pyxel.frame_count
 
-    def speed_ball(self):
-        pass
+    def speed_ball(self, ball: Ball):
+        if (pyxel.frame_count - self.time) == 300:
+            ball.speed = 10
+            self.active = False
+        else:
+            if self.player == 'player':
+                if ball.player == 'player':
+                    ball.speed = 15
+                else:
+                    ball.speed = 10
+            else:
+                if ball.player == 'player':
+                    ball.speed = 10
+                else:
+                    ball.speed = 15
 
     def fake_ball(self):
         pass
 
     def triple_ball(self, ball: Ball):
         ball.can_move = False
-        if (pyxel.frame_count - self.game.time.count) % 30 == 0:
+        if (pyxel.frame_count - self.time) % 30 == 0:
             if self.use_count == 3:
                 self.use_count = 0
                 ball.can_move = True
@@ -236,15 +249,6 @@ class Player:
         self.score = 0
 
 
-class Time:
-    def __init__(self, game):
-        self.game = game
-        self.count = 0
-
-    def count(self):
-        self.count += 1
-
-
 class Game:
 
     def __init__(self):
@@ -269,8 +273,6 @@ class Game:
         self.balls = [Ball(self)]
         self.balls[0].initialize(250, self.bar.y, 5, 7, 10, -1)
 
-        self.time = Time(self)
-
         # 플레이어가 클릭하면 True로 변경
         self.started = False
 
@@ -292,9 +294,11 @@ class Game:
             ball.move()
             self.item.detect_collision(ball)
             if self.item.active:
-                if self.item.type == 1:
-                    if not ball.fake:
+                if not ball.fake:
+                    if self.item.type == 1:
                         self.item.triple_ball(ball)
+                    elif self.item.type == 2:
+                        self.item.speed_ball(ball)
 
     def draw(self):
         pyxel.cls(0)
@@ -316,6 +320,11 @@ class Game:
         pyxel.text(170, 315, f'{self.player.score}', 7)
         pyxel.text(170, 335, f'{self.enemy.score}', 7)
         pyxel.text(240, 55, f'{pyxel.frame_count}', 7)
+        if self.item.active:
+            if self.item.type == 1:
+                pyxel.text(240, 75, f'{90 - (pyxel.frame_count - self.item.time)}', 7)
+            elif self.item.type == 2:
+                pyxel.text(240, 75, f'{300 - (pyxel.frame_count - self.item.time)}', 7)
 
         if not self.started:
             pyxel.text(85, 215, 'Press SPACE to Start', 7)
