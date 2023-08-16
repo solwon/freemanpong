@@ -151,22 +151,25 @@ class enemy_bar(Bar):
     def __init__(self, game):
         super().__init__(game)
         self.speed = 0
+        self.near_ball_x = 0
+        self.near_ball_y = 0
 
     def initialize(self, x, y, width, height, speed=5):
         super().initialize(x, y, width, height)
         self.speed = speed
 
     def move(self):
-        if self.y > self.game.balls[0].y:
-            if self.speed > self.y - self.game.balls[0].y:
-                self.y = self.game.balls[0].y
+        if self.y > self.near_ball_y:
+            if self.speed > self.y - self.near_ball_y:
+                self.y = self.near_ball_y
             else:
                 self.y -= self.speed
         else:
-            if self.speed > self.game.balls[0].y - self.y:
-                self.y = self.game.balls[0].y
+            if self.speed > self.near_ball_y - self.y:
+                self.y = self.near_ball_y
             else:
                 self.y += self.speed
+        self.near_ball_x = 0
 
 
 class Item:
@@ -324,7 +327,13 @@ class Game:
 
         if not self.game_over:
             self.bar.move()
+            for ball in self.balls:
+                if not ball.fake:
+                    if ball.x >= self.enemy_bar.near_ball_x:
+                        self.enemy_bar.near_ball_x = ball.x
+                        self.enemy_bar.near_ball_y = ball.y
             self.enemy_bar.move()
+
             for ball in self.balls:
                 ball.move()
                 self.item.detect_collision(ball)
