@@ -188,18 +188,18 @@ class Item:
         if not self.existence:
             if not self.active:
                 # 아이템 등장 확률 설정
-                if random.randint(1, 1) == 1:
+                if random.randint(1, 3) == 1:
                     self.existence = True
                     # 아이템 좌표 랜덤 선택
                     self.x = random.randint(150, 330)
                     self.y = random.randint(50, 310)
                     # 아이템 종류 랜덤 선택
-                    self.type = random.randint(3, 3)
-                    if self.type == 1:
+                    self.type = random.randint(1, 3)
+                    if self.type == 1:  # 트리플
                         self.color = 8
-                    elif self.type == 2:
+                    elif self.type == 2:  # 스피드
                         self.color = 9
-                    elif self.type == 3:
+                    elif self.type == 3:  # 페이크
                         self.color = 10
 
     def detect_collision(self, ball: Ball):
@@ -220,14 +220,14 @@ class Item:
         else:
             if self.player == 'player':
                 if ball.player == 'player':
-                    ball.speed = 15
+                    ball.speed = ball.max_speed
                 else:
                     ball.speed = 10
             else:
                 if ball.player == 'player':
                     ball.speed = 10
                 else:
-                    ball.speed = 15
+                    ball.speed = ball.max_speed
 
     def fake_ball(self, ball: Ball):
         if (pyxel.frame_count - self.time) % 60 == 0:
@@ -299,11 +299,17 @@ class Game:
         self.balls = [Ball(self)]
         self.balls[0].initialize(250, self.bar.y, 5, 7, 10, -1)
 
+        # 메인 화면 난이도 선택
+        self.main_started = 1
+
         # 플레이어가 클릭하면 True로 변경
         self.started = False
 
-        # 컴퓨터가 특정 점수에 도달하면 활성화
-        self.lose = False
+        # 게임이 끝났을 때 활성화
+        self.game_over = False
+
+        # 승리 점수
+        self.win_score = 3
 
         # 플레이어가 특정 점수에 도달하면 활성화
         self.win = False
@@ -311,53 +317,82 @@ class Game:
         pyxel.run(self.update, self.draw)
 
     def update(self):
-        if not self.started and pyxel.btnp(pyxel.KEY_SPACE):
-            self.started = True
+        if not self.started:
+            self.difficult_select()
+            if pyxel.btnp(pyxel.KEY_SPACE):
+                self.started = True
 
-        self.bar.move()
-        self.enemy_bar.move()
-        for ball in self.balls:
-            ball.move()
-            self.item.detect_collision(ball)
-            if self.item.active:
-                if not ball.item:
-                    if self.item.type == 1:
-                        self.item.triple_ball(ball)
-                    elif self.item.type == 2:
-                        self.item.speed_ball(ball)
-                    elif self.item.type == 3:
-                        self.item.fake_ball(ball)
+        if not self.game_over:
+            self.bar.move()
+            self.enemy_bar.move()
+            for ball in self.balls:
+                ball.move()
+                self.item.detect_collision(ball)
+                if self.item.active:
+                    if not ball.item:
+                        if self.item.type == 1:
+                            self.item.triple_ball(ball)
+                        elif self.item.type == 2:
+                            self.item.speed_ball(ball)
+                        elif self.item.type == 3:
+                            self.item.fake_ball(ball)
+
+        if self.player.score == self.win_score or self.enemy.score == self.win_score:
+            self.game_over = True
+            self.started = False
+            if self.player.score == self.win_score:
+                self.win = True
 
     def draw(self):
         pyxel.cls(0)
+        if not self.game_over:
+            pyxel.rect(self.bar.x - self.bar.width, self.bar.y - self.bar.height, self.bar.width * 2,
+                       self.bar.height * 2,
+                       self.bar.color)
+            pyxel.rect(self.enemy_bar.x - self.enemy_bar.width, self.enemy_bar.y - self.enemy_bar.height,
+                       self.enemy_bar.width * 2, self.enemy_bar.height * 2, self.enemy_bar.color)
+            for ball in self.balls:
+                pyxel.circ(ball.x, ball.y, ball.r, ball.color)
 
-        pyxel.rect(self.bar.x - self.bar.width, self.bar.y - self.bar.height, self.bar.width * 2, self.bar.height * 2,
-                   self.bar.color)
-        pyxel.rect(self.enemy_bar.x - self.enemy_bar.width, self.enemy_bar.y - self.enemy_bar.height,
-                   self.enemy_bar.width * 2,
-                   self.enemy_bar.height * 2, self.enemy_bar.color)
+            if not self.started:
+                pyxel.text(195, 190, 'hard mode', 7 if self.main_started != 3 else 10)
+                pyxel.text(195, 200, 'normal mode', 7 if self.main_started != 2 else 10)
+                pyxel.text(195, 210, 'easy mode', 7 if self.main_started != 1 else 10)
+                pyxel.text(195, 180, 'Press SPACE to Start', 7)
+            else:
+                if self.item.existence:
+                    pyxel.circ(self.item.x, self.item.y, self.item.r, self.item.color)
 
-        for ball in self.balls:
-            pyxel.circ(ball.x, ball.y, ball.r, ball.color)
+                pyxel.text(205, 20, f'{self.player.score}', 15)
+                pyxel.text(265, 20, f'{self.enemy.score}', 15)
+                pyxel.text(233, 20, f'{int(pyxel.frame_count / 30)}', 7)
+                if self.item.active:
+                    if self.item.type == 1:
+                        pyxel.text(233, 35, f'{90 - (pyxel.frame_count - self.item.time)}', 5)
+                    elif self.item.type == 2:
+                        pyxel.text(233, 35, f'{300 - (pyxel.frame_count - self.item.time)}', 5)
+                    elif self.item.type == 3:
+                        pyxel.text(233, 35, f'{180 - (pyxel.frame_count - self.item.time)}', 5)
+        else:
+            if self.win:
+                pyxel.text(215, 180, 'You Win', 7)
+            else:
+                pyxel.text(215, 180, 'You Lose', 7)
 
-        if self.item.existence:
-            pyxel.circ(self.item.x, self.item.y, self.item.r, self.item.color)
+    def difficult_select(self):
 
-        pyxel.text(85, 315, f'{self.balls[0].x}', 7)
-        pyxel.text(85, 335, f'{self.balls[0].y}', 7)
-        pyxel.text(170, 315, f'{self.player.score}', 7)
-        pyxel.text(170, 335, f'{self.enemy.score}', 7)
-        pyxel.text(240, 55, f'{pyxel.frame_count}', 7)
-        if self.item.active:
-            if self.item.type == 1:
-                pyxel.text(240, 75, f'{90 - (pyxel.frame_count - self.item.time)}', 7)
-            elif self.item.type == 2:
-                pyxel.text(240, 75, f'{300 - (pyxel.frame_count - self.item.time)}', 7)
-            elif self.item.type == 3:
-                pyxel.text(240, 75, f'{180 - (pyxel.frame_count - self.item.time)}', 7)
+        if pyxel.btnp(pyxel.KEY_SPACE):
+            self.enemy_bar.speed = self.main_started * 3
+        else:
+            if pyxel.btnp(pyxel.KEY_UP):
+                self.main_started += 1
+            elif pyxel.btnp(pyxel.KEY_DOWN):
+                self.main_started -= 1
 
-        if not self.started:
-            pyxel.text(85, 215, 'Press SPACE to Start', 7)
+            if self.main_started > 3:
+                self.main_started = 1
+            elif self.main_started < 1:
+                self.main_started = 3
 
 
 Game()
